@@ -131,6 +131,7 @@ async def on_raw_reaction_add(payload):
         except Exception as e2:
             print(f"Couldn't assign role to {user}: {e2}")
 
+    if payload.message_id == rules_message_id:
         purge_no_apo_users()
 
 
