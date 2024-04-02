@@ -17,7 +17,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 guild_id = 1062107664932417586
 role_id = 1224746856077332692
 apo_emoji_id = 1070609258233741373
+no_apo_emoji_id = 1211374073209163876
 rules_message_id = 1062298391658377247
+rules_channel_id = 1062297825054044250
 mod_channel_id = 1224815581316780183
 
 
@@ -70,6 +72,43 @@ async def grant_role_to_active_users(guild_id, role_id):
         print(f"An error occurred: {e}")
 
 
+async def purge_no_apo_users():
+    rules_channel = bot.get_channel(rules_channel_id)
+    if rules_channel is None:
+        print("Channel not found.")
+        return None
+    try:
+        message = await rules_channel.fetch_message(rules_message_id)
+    except discord.NotFound:
+        print("Message not found.")
+        return None
+    except discord.Forbidden:
+        print("Don't have permission to access message.")
+        return None
+
+    # Find the guild by ID
+    guild = bot.get_guild(guild_id)
+    if guild is None:
+        print("Guild not found.")
+        return
+
+    # Find the role in the guild by ID
+    role = discord.utils.get(guild.roles, id=role_id)
+    if role is None:
+        print("Role not found.")
+        return
+
+    for reaction in message.reactions:
+        if str(reaction.emoji.id) == no_apo_emoji_id:
+            async for user in reaction.users():
+                try:
+                    if role in user.roles:
+                        await user.remove_roles(role)
+                        print("Found active author:", message.author)
+                except Exception as e2:
+                    print(f"Couldn't remove role from {user}: {e2}")
+
+
 @bot.command(name="assignroles")
 async def assign_roles_command(ctx):
     await grant_role_to_active_users(guild_id, role_id)
@@ -91,6 +130,8 @@ async def on_raw_reaction_add(payload):
                 print(f"Added {role.name} to {user.name}")
         except Exception as e2:
             print(f"Couldn't assign role to {user}: {e2}")
+
+        purge_no_apo_users()
 
 
 # map from user+hash(message) to list of (timestamp, channel)
@@ -161,7 +202,9 @@ async def on_message(message):
                 mod_channel = bot.get_channel(mod_channel_id)
                 await mod_channel.send(f"Banned {message.author} for spamming.")
             except Exception as e:
-                print(f"Couldn't send message to mod log for banning {message.author}: {e}")
+                print(
+                    f"Couldn't send message to mod log for banning {message.author}: {e}"
+                )
 
     await bot.process_commands(message)
 
