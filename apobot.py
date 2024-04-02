@@ -99,7 +99,10 @@ async def purge_no_apo_users():
         return
 
     for reaction in message.reactions:
-        if str(reaction.emoji.id) == no_apo_emoji_id:
+        if (
+            isinstance(reaction.emoji, discord.Emoji)
+            and reaction.emoji.id == no_apo_emoji_id
+        ):
             async for user in reaction.users():
                 try:
                     if role in user.roles:
