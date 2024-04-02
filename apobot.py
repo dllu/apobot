@@ -107,7 +107,7 @@ async def purge_no_apo_users():
                 try:
                     if role in user.roles:
                         await user.remove_roles(role)
-                        print("Found active author:", message.author)
+                        print("Removing role:", user)
                 except Exception as e2:
                     print(f"Couldn't remove role from {user}: {e2}")
 
