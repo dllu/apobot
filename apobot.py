@@ -105,9 +105,9 @@ async def purge_no_apo_users():
         ):
             async for user in reaction.users():
                 try:
+                    print("Removing role:", user)
                     if role in user.roles:
                         await user.remove_roles(role)
-                        print("Removing role:", user)
                 except Exception as e2:
                     print(f"Couldn't remove role from {user}: {e2}")
 
