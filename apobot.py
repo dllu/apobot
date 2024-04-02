@@ -120,8 +120,6 @@ async def on_message(message):
 
     now = datetime.utcnow()
     content = message.content
-    if len(content) < 10 and "https://" not in content:
-        return
 
     user_id = message.author.id
     key = f"{user_id}-{hash(content)}"
@@ -129,8 +127,6 @@ async def on_message(message):
     # Add the timestamp of the current message to the tracking structure
     user_messages[key].append((now, message.channel.id))
     clean_up_old_timestamps(now)
-
-    mod_channel = bot.get_channel(mod_channel_id)
 
     # Check if this message was posted at least 6 times in at least 4 channels within the last 60 seconds
     num_channels = len(set(channel_id for _, channel_id in user_messages[key]))
@@ -143,6 +139,12 @@ async def on_message(message):
                     reason="Spamming the same message in multiple channels"
                 )
 
+            except discord.Forbidden:
+                print(f"Failed to ban {message.author} - I might not have permission.")
+            except discord.HTTPException:
+                print(f"Failed to ban {message.author} due to an HTTP error.")
+
+            try:
                 guild = bot.get_guild(guild_id)
                 if guild is None:
                     print("Guild not found.")
@@ -150,14 +152,16 @@ async def on_message(message):
 
                 for channel in guild.text_channels:
                     await message.channel.purge(
-                        limit=100, check=lambda m: m.author == message.author
+                        limit=10, check=lambda m: m.author == message.author
                     )
-                await mod_channel.send(f"Banned {message.author} for spamming.")
+            except Exception as e:
+                print(f"Couldn't delete messages from {message.author}: {e}")
 
-            except discord.Forbidden:
-                print(f"Failed to ban {message.author} - I might not have permission.")
-            except discord.HTTPException:
-                print(f"Failed to ban {message.author} due to an HTTP error.")
+            try:
+                mod_channel = bot.get_channel(mod_channel_id)
+                await mod_channel.send(f"Banned {message.author} for spamming.")
+            except Exception as e:
+                print(f"Couldn't send message to mod log for banning {message.author}: {e}")
 
     await bot.process_commands(message)
 
