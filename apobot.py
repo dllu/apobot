@@ -93,6 +93,7 @@ async def on_raw_reaction_add(payload):
             print(f"Couldn't assign role to {user}: {e2}")
 
 
+# map from user+hash(message) to list of (timestamp, channel)
 user_messages = defaultdict(list)
 
 
@@ -102,7 +103,7 @@ def clean_up_old_timestamps(now):
     for key, timestamps in list(user_messages.items()):
         # Keep only timestamps that are less than a minute old
         new_timestamps = [
-            timestamp for timestamp in timestamps if timestamp > one_minute_ago
+            timestamp for timestamp in timestamps if timestamp[0] > one_minute_ago
         ]
 
         if new_timestamps:
@@ -119,18 +120,22 @@ async def on_message(message):
 
     now = datetime.utcnow()
     content = message.content
+    if len(content) < 10 and "https://" not in content:
+        return
+
     user_id = message.author.id
     key = f"{user_id}-{hash(content)}"
 
     # Add the timestamp of the current message to the tracking structure
-    user_messages[key].append(now)
+    user_messages[key].append((now, message.channel.id))
     clean_up_old_timestamps(now)
 
     mod_channel = bot.get_channel(mod_channel_id)
 
-    # Check if this message was posted more than 6 times within the last 60 seconds
-    if len(user_messages[key]) > 6:
-        first_message_time = user_messages[key][0]
+    # Check if this message was posted at least 6 times in at least 4 channels within the last 60 seconds
+    num_channels = len(set(channel_id for _, channel_id in user_messages[key]))
+    if len(user_messages[key]) > 5 and num_channels > 3:
+        first_message_time = user_messages[key][0][0]
         if now - first_message_time < timedelta(seconds=60):  # Within 60 seconds
             try:
                 # Ban the user
@@ -147,7 +152,7 @@ async def on_message(message):
                     await message.channel.purge(
                         limit=100, check=lambda m: m.author == message.author
                     )
-                mod_channel.send(f"Banned {message.author} for spamming.")
+                await mod_channel.send(f"Banned {message.author} for spamming.")
 
             except discord.Forbidden:
                 print(f"Failed to ban {message.author} - I might not have permission.")
