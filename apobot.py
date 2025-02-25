@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import discord
 from discord.ext import commands
 
+
 intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
@@ -140,6 +141,7 @@ async def on_raw_reaction_add(payload):
 
 # map from user+hash(message) to list of (timestamp, channel)
 user_messages = defaultdict(list)
+last_correction = {}
 
 
 def clean_up_old_timestamps(now):
@@ -183,7 +185,6 @@ async def on_message(message):
                 await message.author.ban(
                     reason="Spamming the same message in multiple channels"
                 )
-
             except discord.Forbidden:
                 print(f"Failed to ban {message.author} - I might not have permission.")
             except discord.HTTPException:
@@ -196,7 +197,7 @@ async def on_message(message):
                     return
 
                 for channel in guild.text_channels:
-                    await message.channel.purge(
+                    await channel.purge(
                         limit=10, check=lambda m: m.author == message.author
                     )
             except Exception as e:
@@ -209,6 +210,18 @@ async def on_message(message):
                 print(
                     f"Couldn't send message to mod log for banning {message.author}: {e}"
                 )
+
+    # --- Typo Correction Section ---
+    # Check for the common typo "voightlander" (case-insensitive)
+    if "voight" in content.lower():
+        # Check rate limit (once every 5 minutes per user)
+        last_time = last_correction.get(user_id)
+        if last_time is None or (now - last_time) >= timedelta(minutes=5):
+            try:
+                await message.reply("Did you mean **Voigtländer** (without the 'h')?")
+                last_correction[user_id] = now  # Update the rate limit timestamp
+            except Exception as e:
+                print(f"Failed to send typo correction: {e}")
 
     await bot.process_commands(message)
 
