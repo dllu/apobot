@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import discord
 from discord.ext import commands
 
-
 intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
@@ -213,17 +212,19 @@ async def on_message(message):
 
     # --- Typo Correction Section ---
     # Check for the common typo "voightlander" (case-insensitive)
-    if "voight" in content.lower():
-        # Check rate limit (once every 5 minutes per user)
-        last_time = last_correction.get(user_id)
-        if last_time is None or (now - last_time) >= timedelta(minutes=5):
-            try:
-                await message.reply("Did you mean **Voigtländer** (without the 'h')?")
-                last_correction[user_id] = now  # Update the rate limit timestamp
-            except Exception as e:
-                print(f"Failed to send typo correction: {e}")
+    typos = {'voight': "**Voigtländer** (without the 'h')", ' lecia ': '**Leica**'}
+    for typo, correction in typos.items():
+        if typo in content.lower():
+            # Check rate limit (once every 5 minutes per user)
+            last_time = last_correction.get(user_id)
+            if last_time is None or (now - last_time) >= timedelta(minutes=5):
+                try:
+                    await message.reply(f"Did you mean {correction}?")
+                    last_correction[user_id] = now  # Update the rate limit timestamp
+                except Exception as e:
+                    print(f"Failed to send typo correction: {e}")
 
-    await bot.process_commands(message)
+        await bot.process_commands(message)
 
 
 @bot.event
